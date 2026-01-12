@@ -9,10 +9,103 @@ npm run dev
 # or
 yarn dev
 # or
-pnpm dev
-# or
-bun dev
+pnpm devHere’s a clean, professional **README.md context** you can directly copy-paste for your **AI Powered Weather Chatbot** project 👇
+
+---
+
+# 🌦️ AI-Powered Weather Chatbot
+
+An **AI-powered weather chatbot** that provides real-time weather information, forecasts, and climate insights through a simple and interactive conversational interface. Users can search for any city worldwide and instantly receive accurate weather updates, including temperature, humidity, wind speed, and extended forecasts.
+
+---
+
+## 🚀 Features
+
+* 🌍 **City-based weather search** with smart location suggestions
+* 🤖 **AI-powered conversational interface** for natural user interaction
+* ⏱️ **Real-time weather data** using reliable public APIs
+* 📅 **Hourly & 7-day forecasts**
+* 🌡️ **Metric & Imperial units toggle**
+* 🌞🌙 **Day/Night (Light/Dark) mode**
+* 📱 **Responsive UI** for desktop and mobile devices
+
+---
+
+## 🛠️ Tech Stack
+
+* **Frontend:** Next.js (React), TypeScript
+* **Styling:** Tailwind CSS
+* **Icons:** Lucide React
+* **Weather API:** Open-Meteo API
+* **AI Logic:** Rule-based + AI-assisted responses
+
+---
+
+## 📸 How It Works
+
+1. User enters a city name in the chatbot interface
+2. AI processes the query and fetches location data
+3. Weather data is retrieved in real time
+4. The chatbot responds with current conditions and forecasts
+
+---
+
+## ⚙️ Installation & Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/ai-weather-chatbot.git
+
+# Navigate to the project folder
+cd ai-weather-chatbot
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
 ```
+
+Open your browser and visit:
+👉 **[http://localhost:3000](http://localhost:3000)**
+
+---
+
+## 🌐 API Used
+
+* **Open-Meteo Weather API** – Free, fast, and no API key required
+
+---
+
+## 🎯 Use Cases
+
+* Daily weather checks
+* Travel planning
+* Educational AI projects
+* Demonstration of AI + API integration
+
+---
+
+## 📌 Future Enhancements
+
+* Voice-based weather queries 🎙️
+* Weather alerts & notifications ⚠️
+* Personalized weather recommendations
+* Multilingual support 🌐
+
+---
+
+## 👨‍💻 Author
+
+**Arpit**
+AI & Web Development Enthusiast
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** – feel free to use and modify it.
+
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
