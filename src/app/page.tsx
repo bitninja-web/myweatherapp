@@ -416,7 +416,7 @@ export default function WeatherApp() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">AI Weather</h1>
-            <p className="mt-1 text-sm" style={{ color: isDark ? "#cbd5e1" : undefined }}>Real‑time forecast powered by AI</p>
+            <p className={cn("mt-1 text-sm", isDark ? "text-slate-300" : "text-gray-600")}>Real‑time forecast powered by AI</p>
           </div>
 
           {/* Units + Theme Toggle (top-right) */}
@@ -545,7 +545,7 @@ export default function WeatherApp() {
                     <div className="text-xl font-semibold">
                       {selected ? `${selected.name}${selected.country ? ", " + selected.country : ""}` : "–"}
                     </div>
-                    <div className="text-xs" style={{ color: isDark ? "#94a3b8" : undefined }}>{data?.timezone || selected?.timezone || ""}</div>
+                    <div className={cn("text-xs", isDark ? "text-slate-400" : "text-gray-600")}>{data?.timezone || selected?.timezone || ""}</div>
                   </div>
                   <Badge className={cn(isDark ? "bg-slate-700 border-slate-600" : "bg-gray-50") }>
                     {data && (WEATHER_CODE_MAP[data.current_weather?.weathercode]?.icon || <Sun className="h-4 w-4" />)}
@@ -568,7 +568,7 @@ export default function WeatherApp() {
                         {Math.round(data.current_weather.temperature)}
                         <span className="align-super text-2xl">{unitLabels.temp}</span>
                       </div>
-                      <div className="space-y-1 text-sm" style={{ color: isDark ? "#cbd5e1" : undefined }}>
+                      <div className={cn("space-y-1 text-sm", isDark ? "text-slate-300" : "text-gray-700")}>
                         <div className="flex items-center gap-2">
                           <Thermometer className="h-4 w-4" /> Feels like
                           <b className={cn(isDark ? "text-white" : "text-gray-900")}>{Math.round(feelsLike)}{unitLabels.temp}</b>
@@ -624,10 +624,10 @@ export default function WeatherApp() {
                       // STACK DATE above TEMPERATURE to avoid overlap; added explicit truncation and spacing
                       <div key={d} className={cn("flex flex-col items-center sm:items-start rounded-xl border p-3 min-w-0 w-full overflow-hidden", isDark ? "border-slate-700" : "") }>
                         <div className="flex w-full items-center gap-3 min-w-0">
-                          <span className="w-12 text-sm" style={{ color: isDark ? "#94a3b8" : undefined }}>{isoToWeekday(d)}</span>
+                          <span className={cn("w-12 text-sm", isDark ? "text-slate-400" : "text-gray-600")}>{isoToWeekday(d)}</span>
                           <div className="flex items-center gap-2 text-sm min-w-0">
                             {iconForCode(data.daily.weathercode?.[i])}
-                            <span className="truncate max-w-[10rem]" style={{ color: isDark ? "#cbd5e1" : undefined }}>{WEATHER_CODE_MAP[data.daily.weathercode?.[i]]?.label || ""}</span>
+                            <span className={cn("truncate max-w-[10rem]", isDark ? "text-slate-200" : "text-gray-900")}>{WEATHER_CODE_MAP[data.daily.weathercode?.[i]]?.label || ""}</span>
                           </div>
                         </div>
 
@@ -662,21 +662,21 @@ export default function WeatherApp() {
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                     {hourlySlice(data.hourly, 24).map((h) => (
                       <div key={h.time} className={cn("flex flex-col gap-1 rounded-xl border p-3", isDark ? "border-slate-700" : "bg-white") }>
-                        <div className="text-xs" style={{ color: isDark ? "#94a3b8" : undefined }}>{isoToHour(h.time)}</div>
+                        <div className={cn("text-xs", isDark ? "text-slate-400" : "text-gray-600")}>{isoToHour(h.time)}</div>
                         <div className="flex items-baseline gap-1 text-lg font-semibold">
                           {Math.round(h.temperature)}
                           <span className="text-xs">{unitLabels.temp}</span>
                         </div>
-                        <div className="text-xs" style={{ color: isDark ? "#cbd5e1" : undefined }}>Feels {Math.round(h.apparent)}{unitLabels.temp}</div>
-                        <div className="text-xs" style={{ color: isDark ? "#cbd5e1" : undefined }}>Wind {Math.round(h.wind)} {unitLabels.wind}</div>
-                        <div className="text-xs" style={{ color: isDark ? "#cbd5e1" : undefined }}>Hum {Math.round(h.humidity)}%</div>
-                        <div className="text-xs" style={{ color: isDark ? "#cbd5e1" : undefined }}>Precip {fmt(h.precip)}</div>
+                        <div className={cn("text-xs", isDark ? "text-slate-200" : "text-gray-900")}>Feels {Math.round(h.apparent)}{unitLabels.temp}</div>
+                        <div className={cn("text-xs", isDark ? "text-slate-200" : "text-gray-900")}>Wind {Math.round(h.wind)} {unitLabels.wind}</div>
+                        <div className={cn("text-xs", isDark ? "text-slate-200" : "text-gray-900")}>Hum {Math.round(h.humidity)}%</div>
+                        <div className={cn("text-xs", isDark ? "text-slate-200" : "text-gray-900")}>Precip {fmt(h.precip)}</div>
                       </div>
                     ))}
                   </div>
                 )}
                 {!loading && !error && !data && (
-                  <div className="text-sm" style={{ color: isDark ? "#cbd5e1" : undefined }}>Type a city name to see the forecast.</div>
+                  <div className={cn("text-sm", isDark ? "text-slate-200" : "text-gray-900")}>Type a city name to see the forecast.</div>
                 )}
               </CardContent>
             </Card>
@@ -691,10 +691,10 @@ export default function WeatherApp() {
 
 function MiniInfo({ label, value, icon }: { label: string; value?: string; icon?: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ background: undefined }}>
-      <div className="flex items-center gap-2" style={{ color: "#94a3b8" }}>
+    <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+      <div className="flex items-center gap-2 text-slate-400">
         {icon}
-        <span className="text-xs" style={{ color: undefined }}>{label}</span>
+        <span className="text-xs">{label}</span>
       </div>
       <div className="text-xs font-semibold">{value ?? "–"}</div>
     </div>
