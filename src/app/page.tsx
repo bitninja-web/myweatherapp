@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   MapPin,
   Search,
@@ -13,85 +13,105 @@ import {
   CloudRain,
   CloudLightning,
   Snowflake,
+  X,
 } from "lucide-react";
 
-/*************************************************
- * Self‑contained, previewable Weather App (React)
- * ------------------------------------------------
- * - No external UI deps (shadcn placeholders below)
- * - Fetches Open‑Meteo geocoding + forecast
- * - Metric/Imperial toggle
- * - Day/Night toggle added (top-right)
- * - Clear button added beside "Use Top Match"
- *************************************************/
-
-// ---------- Minimal UI primitives (shadcn-like) ----------
 
 function cn(...cls: Array<string | false | null | undefined>) {
   return cls.filter(Boolean).join(" ");
 }
 
 const Button = (
-  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "default" | "ghost" }
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: "default" | "ghost";
+  },
 ) => (
   <button
     {...props}
     className={cn(
-      "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium shadow-sm transition-all",
+      "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-95 disabled:opacity-50",
       props.variant === "ghost"
-        ? "bg-transparent hover:bg-gray-100 border border-transparent"
-        : "bg-pink-500 hover:bg-pink-600 text-white",
-      props.className || ""
+        ? "bg-transparent hover:bg-black/5 dark:hover:bg-white/10"
+        : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20",
+      props.className || "",
     )}
   />
 );
 
-const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+const Input = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>((props, ref) => (
   <input
     {...props}
+    ref={ref}
     className={cn(
-      "w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2",
-      props.className || ""
+      "w-full rounded-xl border bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm px-3 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-indigo-500/50 border-gray-200 dark:border-slate-700",
+      props.className || "",
+    )}
+  />
+));
+Input.displayName = "Input";
+
+const Card = (props: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    {...props}
+    className={cn(
+      "rounded-3xl border backdrop-blur-xl transition-all duration-300",
+      props.className || "",
     )}
   />
 );
-
-const Card = (props: React.HTMLAttributes<HTMLDivElement>) => (
-  <div {...props} className={cn("rounded-2xl border shadow-sm", props.className || "")} />
-);
 const CardHeader = (props: React.HTMLAttributes<HTMLDivElement>) => (
-  <div {...props} className={cn("px-6 pt-5", props.className || "")} />
+  <div
+    {...props}
+    className={cn("px-4 py-4 sm:px-6 sm:pt-6 sm:pb-2", props.className || "")}
+  />
 );
-const CardTitle: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, children, ...rest }) => (
-  <div {...rest} className={cn("text-lg font-semibold", className || "")}>{children}</div>
+const CardTitle: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className,
+  children,
+  ...rest
+}) => (
+  <div
+    {...rest}
+    className={cn("text-lg font-bold tracking-tight", className || "")}
+  >
+    {children}
+  </div>
 );
 const CardContent = (props: React.HTMLAttributes<HTMLDivElement>) => (
-  <div {...props} className={cn("px-6 pb-6 overflow-visible", props.className || "")} />
+  <div
+    {...props}
+    className={cn("px-4 pb-4 sm:px-6 sm:pb-6", props.className || "")}
+  />
 );
 
-const Badge: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ className, children, ...rest }) => (
+const Badge: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({
+  className,
+  children,
+  ...rest
+}) => (
   <span
     {...rest}
     className={cn(
-      "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium",
-      className || ""
+      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider",
+      className || "",
     )}
   >
     {children}
   </span>
 );
 
-const ScrollArea: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, children, ...rest }) => (
-  <div {...rest} className={cn("overflow-y-auto", className || "")}>{children}</div>
-);
-
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={cn("animate-pulse rounded-xl bg-gray-200", className)} />
+  <div
+    className={cn(
+      "animate-pulse rounded-2xl bg-gray-200 dark:bg-slate-700",
+      className,
+    )}
+  />
 );
 
-const Separator = () => <div className="my-3 h-px w-full bg-gray-200" />;
-
-// ---------------- Types ----------------
 
 type Units = "metric" | "imperial";
 
@@ -136,7 +156,7 @@ type DailyData = {
   windspeed_10m_max: number[];
   sunrise: string[];
   sunset: string[];
-  weathercode: number[]; // included for per-day icon/label
+  weathercode: number[];
 };
 
 type ForecastResponse = {
@@ -148,40 +168,78 @@ type ForecastResponse = {
   daily: DailyData;
 };
 
-// -------------- Utils ---------------
-
-const WEATHER_CODE_MAP: Record<number, { label: string; icon: React.ReactNode }> = {
-  0: { label: "Clear sky", icon: <Sun className="w-5 h-5" /> },
-  1: { label: "Mainly clear", icon: <Sun className="w-5 h-5" /> },
-  2: { label: "Partly cloudy", icon: <Cloud className="w-5 h-5" /> },
-  3: { label: "Overcast", icon: <Cloud className="w-5 h-5" /> },
+const WEATHER_CODE_MAP: Record<
+  number,
+  { label: string; icon: React.ReactNode }
+> = {
+  0: { label: "Clear sky", icon: <Sun className="w-5 h-5 text-orange-400" /> },
+  1: {
+    label: "Mainly clear",
+    icon: <Sun className="w-5 h-5 text-orange-400" />,
+  },
+  2: {
+    label: "Partly cloudy",
+    icon: <Cloud className="w-5 h-5 text-blue-400" />,
+  },
+  3: { label: "Overcast", icon: <Cloud className="w-5 h-5 text-slate-400" /> },
   45: { label: "Fog", icon: <Cloud className="w-5 h-5" /> },
-  48: { label: "Depositing rime fog", icon: <Cloud className="w-5 h-5" /> },
-  51: { label: "Light drizzle", icon: <CloudRain className="w-5 h-5" /> },
-  53: { label: "Drizzle", icon: <CloudRain className="w-5 h-5" /> },
-  55: { label: "Dense drizzle", icon: <CloudRain className="w-5 h-5" /> },
-  61: { label: "Slight rain", icon: <CloudRain className="w-5 h-5" /> },
-  63: { label: "Rain", icon: <CloudRain className="w-5 h-5" /> },
-  65: { label: "Heavy rain", icon: <CloudRain className="w-5 h-5" /> },
-  71: { label: "Slight snow", icon: <Snowflake className="w-5 h-5" /> },
-  73: { label: "Snow", icon: <Snowflake className="w-5 h-5" /> },
-  75: { label: "Heavy snow", icon: <Snowflake className="w-5 h-5" /> },
-  77: { label: "Snow grains", icon: <Snowflake className="w-5 h-5" /> },
+  48: { label: "Rime fog", icon: <Cloud className="w-5 h-5" /> },
+  51: {
+    label: "Light drizzle",
+    icon: <CloudRain className="w-5 h-5 text-blue-300" />,
+  },
+  53: {
+    label: "Drizzle",
+    icon: <CloudRain className="w-5 h-5 text-blue-400" />,
+  },
+  55: {
+    label: "Dense drizzle",
+    icon: <CloudRain className="w-5 h-5 text-blue-500" />,
+  },
+  61: {
+    label: "Slight rain",
+    icon: <CloudRain className="w-5 h-5 text-blue-400" />,
+  },
+  63: { label: "Rain", icon: <CloudRain className="w-5 h-5 text-blue-600" /> },
+  65: {
+    label: "Heavy rain",
+    icon: <CloudRain className="w-5 h-5 text-blue-800" />,
+  },
+  71: {
+    label: "Slight snow",
+    icon: <Snowflake className="w-5 h-5 text-sky-200" />,
+  },
+  73: { label: "Snow", icon: <Snowflake className="w-5 h-5 text-sky-300" /> },
+  75: {
+    label: "Heavy snow",
+    icon: <Snowflake className="w-5 h-5 text-sky-400" />,
+  },
+  77: {
+    label: "Snow grains",
+    icon: <Snowflake className="w-5 h-5 text-sky-500" />,
+  },
   80: { label: "Rain showers", icon: <CloudRain className="w-5 h-5" /> },
   81: { label: "Heavy showers", icon: <CloudRain className="w-5 h-5" /> },
   82: { label: "Violent showers", icon: <CloudRain className="w-5 h-5" /> },
   85: { label: "Snow showers", icon: <Snowflake className="w-5 h-5" /> },
   86: { label: "Heavy snow showers", icon: <Snowflake className="w-5 h-5" /> },
-  95: { label: "Thunderstorm", icon: <CloudLightning className="w-5 h-5" /> },
-  96: { label: "Thunder w/ hail", icon: <CloudLightning className="w-5 h-5" /> },
-  99: { label: "Thunder w/ heavy hail", icon: <CloudLightning className="w-5 h-5" /> },
+  95: {
+    label: "Thunderstorm",
+    icon: <CloudLightning className="w-5 h-5 text-yellow-500" />,
+  },
+  96: {
+    label: "Thunder w/ hail",
+    icon: <CloudLightning className="w-5 h-5" />,
+  },
+  99: { label: "Heavy hail", icon: <CloudLightning className="w-5 h-5" /> },
 };
 
 const fmt = (n: number | undefined, digits = 0) =>
   Number.isFinite(n as number) ? (n as number).toFixed(digits) : "–";
 const isoToHour = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-const isoToWeekday = (iso: string) => new Date(iso).toLocaleDateString([], { weekday: "short" });
+const isoToWeekday = (iso: string) =>
+  new Date(iso).toLocaleDateString([], { weekday: "short" });
 
 function useDebounce<T>(value: T, delay = 350) {
   const [v, setV] = useState(value);
@@ -209,15 +267,29 @@ function nearestHourValue(times: string[] = [], values: number[] = []) {
 }
 
 function iconForCode(code?: number) {
-  if (code === 0 || typeof code === "number") return WEATHER_CODE_MAP[code]?.icon ?? <Sun className="w-4 h-4" />;
+  if (code === 0 || typeof code === "number")
+    return WEATHER_CODE_MAP[code]?.icon ?? <Sun className="w-4 h-4" />;
   return <Sun className="w-4 h-4" />;
 }
 
 function hourlySlice(hourly: HourlyData, n: number) {
-  const { time = [], temperature_2m = [], apparent_temperature = [], windspeed_10m = [], relative_humidity_2m = [], precipitation = [] } =
-    hourly || ({} as HourlyData);
+  const {
+    time = [],
+    temperature_2m = [],
+    apparent_temperature = [],
+    windspeed_10m = [],
+    relative_humidity_2m = [],
+    precipitation = [],
+  } = hourly || ({} as HourlyData);
   const now = Date.now();
-  const items: { time: string; temperature: number; apparent: number; wind: number; humidity: number; precip: number }[] = [];
+  const items: {
+    time: string;
+    temperature: number;
+    apparent: number;
+    wind: number;
+    humidity: number;
+    precip: number;
+  }[] = [];
 
   for (let i = 0; i < time.length; i++) {
     const t = new Date(time[i]).getTime();
@@ -247,7 +319,6 @@ function hourlySlice(hourly: HourlyData, n: number) {
   return items;
 }
 
-// -------------- Component --------------
 
 export default function WeatherApp() {
   const [units, setUnits] = useState<Units>("metric");
@@ -257,29 +328,26 @@ export default function WeatherApp() {
   const [data, setData] = useState<ForecastResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // NEW: day/night theme
   const [isDark, setIsDark] = useState(false);
 
+  const inputRef = useRef<HTMLInputElement>(null);
   const debouncedQuery = useDebounce(query);
 
-  // Default location New Delhi on first load
   useEffect(() => {
     if (!selected) {
-      const delhi: GeoPlace = {
+      setSelected({
         id: 1261481,
         name: "New Delhi",
         country: "India",
         admin1: "Delhi",
         latitude: 28.6139,
-        longitude: 77.2090,
+        longitude: 77.209,
         timezone: "Asia",
-      };
-      setSelected(delhi);
+      });
     }
   }, [selected]);
 
-  // Fetch suggestions (debounced)
+  // Geocoding Search Logic
   useEffect(() => {
     const controller = new AbortController();
     const run = async () => {
@@ -292,32 +360,18 @@ export default function WeatherApp() {
         const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
         url.searchParams.set("name", q);
         url.searchParams.set("count", "6");
-        url.searchParams.set("language", "en");
-        url.searchParams.set("format", "json");
         const res = await fetch(url.toString(), { signal: controller.signal });
-        if (!res.ok) throw new Error("Geocoding failed");
         const j = await res.json();
-        const list: GeoPlace[] = (j?.results || []).map((r: any) => ({
-          id: r.id ?? `${r.latitude},${r.longitude}`,
-          name: r.name,
-          country: r.country,
-          admin1: r.admin1,
-          latitude: r.latitude,
-          longitude: r.longitude,
-          timezone: r.timezone,
-        }));
-        setSuggestions(list);
+        setSuggestions(j?.results || []);
       } catch (e: any) {
-        if (e?.name !== "AbortError") {
-          setSuggestions([]);
-        }
+        if (e?.name !== "AbortError") setSuggestions([]);
       }
     };
     run();
     return () => controller.abort();
   }, [debouncedQuery]);
 
-  // Fetch forecast whenever selection or units change
+  // Forecast Data Fetching
   useEffect(() => {
     const controller = new AbortController();
     const run = async () => {
@@ -332,42 +386,25 @@ export default function WeatherApp() {
         url.searchParams.set("current_weather", "true");
         url.searchParams.set(
           "hourly",
-          [
-            "temperature_2m",
-            "apparent_temperature",
-            "relative_humidity_2m",
-            "precipitation",
-            "windspeed_10m",
-            "surface_pressure",
-            "cloudcover",
-          ].join(",")
+          "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,windspeed_10m,surface_pressure,cloudcover",
         );
         url.searchParams.set(
           "daily",
-          [
-            "temperature_2m_max",
-            "temperature_2m_min",
-            "apparent_temperature_max",
-            "apparent_temperature_min",
-            "precipitation_sum",
-            "uv_index_max",
-            "windspeed_10m_max",
-            "sunrise",
-            "sunset",
-            "weathercode",
-          ].join(",")
+          "temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,uv_index_max,windspeed_10m_max,sunrise,sunset,weathercode",
         );
         url.searchParams.set("timezone", "auto");
-        url.searchParams.set("temperature_unit", isMetric ? "celsius" : "fahrenheit");
+        url.searchParams.set(
+          "temperature_unit",
+          isMetric ? "celsius" : "fahrenheit",
+        );
         url.searchParams.set("windspeed_unit", isMetric ? "kmh" : "mph");
         url.searchParams.set("precipitation_unit", isMetric ? "mm" : "inch");
         const res = await fetch(url.toString(), { signal: controller.signal });
-        if (!res.ok) throw new Error("Forecast fetch failed");
         const j: ForecastResponse = await res.json();
         setData(j);
       } catch (e: any) {
-        if (e?.name === "AbortError") return;
-        setError(e?.message || "Something went wrong");
+        if (e?.name !== "AbortError")
+          setError(e?.message || "Something went wrong");
       } finally {
         setLoading(false);
       }
@@ -376,308 +413,359 @@ export default function WeatherApp() {
     return () => controller.abort();
   }, [selected, units]);
 
+  const handleSelectCity = (city: GeoPlace) => {
+    setSelected(city);
+    setQuery(`${city.name}, ${city.country}`);
+    setSuggestions([]);
+    inputRef.current?.blur();
+  };
+
   const unitLabels = useMemo(
     () =>
       units === "metric"
         ? { temp: "°C", wind: "km/h", precip: "mm", pressure: "hPa" }
         : { temp: "°F", wind: "mph", precip: "in", pressure: "hPa" },
-    [units]
-  );
-
-  const currentDesc = useMemo(
-    () => (data ? WEATHER_CODE_MAP[data.current_weather?.weathercode]?.label ?? "" : ""),
-    [data]
+    [units],
   );
 
   const feelsLike = useMemo(
-    () => (data ? nearestHourValue(data.hourly?.time, data.hourly?.apparent_temperature) : 0),
-    [data]
+    () =>
+      data
+        ? nearestHourValue(data.hourly?.time, data.hourly?.apparent_temperature)
+        : 0,
+    [data],
   );
   const humidityNow = useMemo(
-    () => (data ? nearestHourValue(data.hourly?.time, data.hourly?.relative_humidity_2m) : 0),
-    [data]
-  );
-  const pressureNow = useMemo(
-    () => (data ? nearestHourValue(data.hourly?.time, data.hourly?.surface_pressure) : 0),
-    [data]
-  );
-  const cloudNow = useMemo(
-    () => (data ? nearestHourValue(data.hourly?.time, data.hourly?.cloudcover) : 0),
-    [data]
+    () =>
+      data
+        ? nearestHourValue(data.hourly?.time, data.hourly?.relative_humidity_2m)
+        : 0,
+    [data],
   );
 
-  // theme-aware card classes
-  const cardTheme = isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white";
+  const cardTheme = isDark
+    ? "bg-slate-900/60 border-slate-700/50 shadow-2xl shadow-black/20 text-white"
+    : "bg-white/80 border-white/40 shadow-xl shadow-indigo-100/50 text-slate-900";
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
-    <div className={cn(isDark ? "min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white" : "min-h-screen bg-gradient-to-b from-pink-50 to-white text-gray-900")}>
-      <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">AI Weather</h1>
-            <p className={cn("mt-1 text-sm", isDark ? "text-slate-300" : "text-gray-600")}>Real‑time forecast powered by AI</p>
-          </div>
+    <div
+      className={cn(
+        "min-h-screen transition-colors duration-700 relative",
+        isDark
+          ? "bg-[#0b1120] text-slate-100"
+          : "bg-gradient-to-br from-sky-200 via-indigo-50 to-white text-slate-900",
+      )}
+    >
+      {!isDark && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-indigo-200/40 blur-3xl" />
+          <div className="absolute top-1/2 -right-24 h-96 w-96 rounded-full bg-sky-200/40 blur-3xl" />
+        </div>
+      )}
 
-          {/* Units + Theme Toggle (top-right) */}
-          <div className="inline-flex items-center gap-3">
-            <div className={cn("inline-flex rounded-xl p-1", isDark ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-200")}>
-              <Button variant={units === "metric" ? "default" : "ghost"} className={cn("rounded-lg", units === "metric" && "bg-pink-500 hover:bg-pink-500 text-white")} onClick={() => setUnits("metric")}>Metric (°C)</Button>
-              <Button variant={units === "imperial" ? "default" : "ghost"} className={cn("rounded-lg", units === "imperial" && "bg-pink-500 hover:bg-pink-500 text-white")} onClick={() => setUnits("imperial")}>Imperial (°F)</Button>
-            </div>
-
-            {/* Day/Night toggle (classy pill with sliding knob) */}
-            <button
-              aria-label="Toggle day/night"
-              onClick={() => setIsDark((v) => !v)}
+      <div className="relative mx-auto max-w-6xl p-3 sm:p-4 md:p-8">
+        <header className="sticky top-0 z-50 py-3 mb-4 sm:mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-inherit/10 backdrop-blur-md">
+          <button
+            onClick={scrollToTop}
+            className="group flex flex-col items-start transition-transform active:scale-95"
+          >
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-sky-500 dark:from-indigo-400 dark:to-sky-300">
+              Atmos AI
+            </h1>
+            <p
               className={cn(
-                "flex items-center gap-2 rounded-full px-2 py-1 text-sm transition-shadow",
-                isDark ? "bg-slate-700 text-white shadow-inner" : "bg-white text-gray-700 shadow"
+                "text-xs sm:text-sm font-medium mt-1 opacity-70 group-hover:opacity-100 transition-opacity",
               )}
             >
-              {/* small sliding knob */}
-              <div className={cn("relative w-12 h-6 flex items-center rounded-full p-1", isDark ? "bg-slate-600" : "bg-yellow-100")}>
-                <div className={cn("absolute w-4 h-4 rounded-full bg-white shadow transform transition-all", isDark ? "translate-x-6" : "translate-x-0")}></div>
-              </div>
-              <div className="hidden sm:flex items-center gap-2">
-                {isDark ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                <span className="text-xs">{isDark ? "Night" : "Day"}</span>
+              Precision weather forecasting
+            </p>
+          </button>
+
+          <div className="flex items-center gap-3 sm:gap-4 self-end sm:self-auto">
+            <div
+              className={cn(
+                "flex rounded-2xl p-1",
+                isDark
+                  ? "bg-slate-800/50 border border-slate-700"
+                  : "bg-white/50 border border-indigo-100",
+              )}
+            >
+              <button
+                onClick={() => setUnits("metric")}
+                className={cn(
+                  "px-3 sm:px-4 py-1.5 text-xs font-bold rounded-xl transition-all",
+                  units === "metric"
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-600 dark:text-slate-300",
+                )}
+              >
+                °C
+              </button>
+              <button
+                onClick={() => setUnits("imperial")}
+                className={cn(
+                  "px-3 sm:px-4 py-1.5 text-xs font-bold rounded-xl transition-all",
+                  units === "imperial"
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-600 dark:text-slate-300",
+                )}
+              >
+                °F
+              </button>
+            </div>
+
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className={cn(
+                "relative flex h-9 sm:h-10 w-16 sm:w-20 items-center rounded-full p-1 transition-all",
+                isDark ? "bg-indigo-900/50" : "bg-indigo-100",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-7 sm:h-8 w-7 sm:w-8 items-center justify-center rounded-full transition-all duration-300",
+                  isDark
+                    ? "translate-x-7 sm:translate-x-10 bg-indigo-500"
+                    : "translate-x-0 bg-white",
+                )}
+              >
+                {isDark ? (
+                  <Moon className="h-4 w-4 text-white" />
+                ) : (
+                  <Sun className="h-4 w-4 text-orange-500" />
+                )}
               </div>
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Search */}
-        <Card className={cn(cardTheme, "mb-6 relative")}>
-          <CardContent className="pt-6">
-            <div className="relative">
-              <div className="flex items-center gap-2">
-                <div className="relative w-full">
-                  <Search className={cn("pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", isDark ? "text-slate-300" : "text-gray-400")} />
-                  <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search city (e.g., Mumbai, London, New York)"
-                    className={cn("pl-9", isDark ? "bg-slate-700 text-white border-slate-600" : "bg-white")}
-                    aria-label="Search city"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && suggestions[0]) {
-                        const s = suggestions[0];
-                        setSelected(s);
-                        setQuery(`${s.name}, ${s.admin1 ? s.admin1 + ", " : ""}${s.country}`);
-                        setSuggestions([]);
-                      }
-                    }}
-                  />
-                </div>
-                <div className="flex-shrink-0">{/* prevent button from shrinking */}
-                  <Button
-                    aria-label="Use the top matching suggestion"
-                    onClick={() => {
-                      if (suggestions[0]) {
-                        const s = suggestions[0];
-                        setSelected(s);
-                        setQuery(`${s.name}, ${s.admin1 ? s.admin1 + ", " : ""}${s.country}`);
-                        setSuggestions([]);
-                      }
-                    }}
-                    disabled={!suggestions.length}
-                  >
-                    <MapPin className="mr-2 h-4 w-4" /> Use Top Match
-                  </Button>
-
-                  {/* NEW Clear button placed beside Use Top Match - minimal behavior: clears query + suggestions */}
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setQuery("");
-                      setSuggestions([]);
-                    }}
-                    disabled={!query && suggestions.length === 0}
-                    className="ml-2"
-                    aria-label="Clear search"
-                  >
-                    Clear
-                  </Button>
-                </div>
-              </div>
-
-              {/* Suggestions dropdown (positioned full-width, not clipped) */}
-              {!!suggestions.length && (
-                <div className="absolute left-0 right-0 z-50 mt-2 w-full">{/* full width dropdown */}
-                  <Card className={cn(cardTheme, "w-full")}>
-                    <div className="max-h-64 overflow-auto">
-                      <div className="p-1">
-                        {suggestions.map((s) => (
-                          <button
-                            key={s.id}
-                            onClick={() => {
-                              setSelected(s);
-                              setQuery(`${s.name}, ${s.admin1 ? s.admin1 + ", " : ""}${s.country}`);
-                              setSuggestions([]);
-                            }}
-                            className={cn("flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-50", isDark ? "hover:bg-slate-700" : "hover:bg-gray-50")}
-                          >
-                            <MapPin className="h-4 w-4 text-pink-500" />
-                            <div className="flex flex-col items-start min-w-0">
-                              <span className="font-medium truncate">{s.name}</span>
-                              <span className="text-xs text-gray-500 truncate">{s.admin1 ? `${s.admin1}, ` : ""}{s.country}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </Card>
-                </div>
+        {/* Search Bar */}
+        <div className="relative mb-6 sm:mb-8 z-[60]">
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 opacity-40" />
+              <Input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Find a city..."
+                className="pl-11 h-12 text-base rounded-2xl"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && suggestions[0])
+                    handleSelectCity(suggestions[0]);
+                }}
+              />
+              {query && (
+                <button
+                  onClick={() => {
+                    setQuery("");
+                    setSuggestions([]);
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1"
+                >
+                  <X className="h-4 w-4 opacity-40" />
+                </button>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Content */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left column: current */}
-          <div className="space-y-6">
-            <Card className={cardTheme}>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xl font-semibold">
-                      {selected ? `${selected.name}${selected.country ? ", " + selected.country : ""}` : "–"}
-                    </div>
-                    <div className={cn("text-xs", isDark ? "text-slate-400" : "text-gray-600")}>{data?.timezone || selected?.timezone || ""}</div>
-                  </div>
-                  <Badge className={cn(isDark ? "bg-slate-700 border-slate-600" : "bg-gray-50") }>
-                    {data && (WEATHER_CODE_MAP[data.current_weather?.weathercode]?.icon || <Sun className="h-4 w-4" />)}
-                    <span className="text-xs">{currentDesc || "–"}</span>
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading && (
-                  <div className="space-y-4">
-                    <Skeleton className="h-10 w-40" />
-                    <Skeleton className="h-24 w-full" />
-                  </div>
+          {!!suggestions.length && (
+            <div className="absolute left-0 right-0 z-[70] mt-2 shadow-2xl">
+              <Card
+                className={cn(
+                  cardTheme,
+                  "overflow-hidden border-indigo-500/30",
                 )}
-                {!!error && <p className="text-sm text-red-500">{error}</p>}
-                {!loading && !error && data && (
+              >
+                <div className="p-2 max-h-[300px] overflow-y-auto">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => handleSelectCity(s)}
+                      className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-indigo-500/10"
+                    >
+                      <MapPin className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">
+                          {s.name}
+                        </p>
+                        <p className="text-xs opacity-50 truncate">
+                          {s.admin1 ? `${s.admin1}, ` : ""}
+                          {s.country}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-12 relative z-10">
+          <div className="lg:col-span-4 space-y-4 sm:space-y-6 lg:space-y-8">
+            <Card className={cn(cardTheme, "relative overflow-hidden")}>
+              <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-indigo-500/10 blur-3xl" />
+              <CardHeader className="flex flex-row items-start justify-between">
+                <div>
+                  <CardTitle className="text-xl sm:text-2xl">
+                    {selected?.name || "–"}
+                  </CardTitle>
+                  <p className="text-xs font-bold opacity-40 mt-1 uppercase tracking-widest">
+                    {selected?.country}
+                  </p>
+                </div>
+                <Badge
+                  className={
+                    isDark ? "bg-white/10" : "bg-indigo-500/10 text-indigo-600"
+                  }
+                >
+                  {data &&
+                    WEATHER_CODE_MAP[data.current_weather?.weathercode]?.label}
+                </Badge>
+              </CardHeader>
+
+              <CardContent className="pt-0 sm:pt-4">
+                {loading ? (
                   <div className="space-y-4">
-                    <div className="flex items-end gap-4">
-                      <div className="text-5xl font-bold leading-none">
-                        {Math.round(data.current_weather.temperature)}
-                        <span className="align-super text-2xl">{unitLabels.temp}</span>
-                      </div>
-                      <div className={cn("space-y-1 text-sm", isDark ? "text-slate-300" : "text-gray-700")}>
-                        <div className="flex items-center gap-2">
-                          <Thermometer className="h-4 w-4" /> Feels like
-                          <b className={cn(isDark ? "text-white" : "text-gray-900")}>{Math.round(feelsLike)}{unitLabels.temp}</b>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Wind className="h-4 w-4" /> Wind
-                          <b className={cn(isDark ? "text-white" : "text-gray-900")}>{Math.round(data.current_weather.windspeed)} {unitLabels.wind}</b>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Droplets className="h-4 w-4" /> Humidity
-                          <b className={cn(isDark ? "text-white" : "text-gray-900")}>{Math.round(humidityNow)}%</b>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Gauge className="h-4 w-4" /> Pressure
-                          <b className={cn(isDark ? "text-white" : "text-gray-900")}>{fmt(pressureNow)}</b> {unitLabels.pressure}
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <MiniInfo label="UV Index" value={fmt(data.daily?.uv_index_max?.[0])} icon={<Sun className="h-4 w-4" />} />
-                      <MiniInfo label="Precip (24h)" value={`${fmt(data.daily?.precipitation_sum?.[0])} ${unitLabels.precip}`} icon={<CloudRain className="h-4 w-4" />} />
-                      <MiniInfo label="Wind (max)" value={`${fmt(data.daily?.windspeed_10m_max?.[0])} ${unitLabels.wind}`} icon={<Wind className="h-4 w-4" />} />
-                      <MiniInfo label="Clouds now" value={`${Math.round(cloudNow)}%`} icon={<Cloud className="h-4 w-4" />} />
-                      <MiniInfo label="Sunrise" value={data.daily?.sunrise?.[0] ? new Date(data.daily.sunrise[0]).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "–"} icon={<Sun className="h-4 w-4" />} />
-                      <MiniInfo label="Sunset" value={data.daily?.sunset?.[0] ? new Date(data.daily.sunset[0]).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "–"} icon={<Moon className="h-4 w-4" />} />
-                    </div>
+                    <Skeleton className="h-20 w-32" />
+                    <Skeleton className="h-40 w-full" />
                   </div>
+                ) : (
+                  data && (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="text-5xl sm:text-7xl font-black tracking-tighter">
+                          {Math.round(data.current_weather.temperature)}°
+                        </div>
+                        <div className="text-indigo-500">
+                          {
+                            WEATHER_CODE_MAP[data.current_weather.weathercode]
+                              ?.icon
+                          }
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                        <DetailBox
+                          label="Feels Like"
+                          value={`${Math.round(feelsLike)}°`}
+                          icon={<Thermometer className="h-4 w-4" />}
+                        />
+                        <DetailBox
+                          label="Humidity"
+                          value={`${Math.round(humidityNow)}%`}
+                          icon={<Droplets className="h-4 w-4" />}
+                        />
+                        <DetailBox
+                          label="Wind Speed"
+                          value={`${Math.round(data.current_weather.windspeed)} ${unitLabels.wind}`}
+                          icon={<Wind className="h-4 w-4" />}
+                        />
+                        <DetailBox
+                          label="UV Index"
+                          value={fmt(data.daily?.uv_index_max?.[0])}
+                          icon={<Sun className="h-4 w-4" />}
+                        />
+                      </div>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
 
-            {/* 7‑day forecast (fixed and responsive, stacked vertically to avoid overlap) */}
             <Card className={cardTheme}>
               <CardHeader>
-                <CardTitle>7‑Day Forecast</CardTitle>
+                <CardTitle className="text-sm uppercase tracking-widest opacity-50">
+                  Astronomical
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                {!data && loading && (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <Skeleton key={i} className="h-16 w-full" />
-                    ))}
-                  </div>
-                )}
-
-                {data && !loading && !error && (
-                  // responsive grid: will wrap naturally and never force horizontal overflow
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                    {data.daily.time.map((d, i) => (
-                      // STACK DATE above TEMPERATURE to avoid overlap; added explicit truncation and spacing
-                      <div key={d} className={cn("flex flex-col items-center sm:items-start rounded-xl border p-3 min-w-0 w-full overflow-hidden", isDark ? "border-slate-700" : "") }>
-                        <div className="flex w-full items-center gap-3 min-w-0">
-                          <span className={cn("w-12 text-sm", isDark ? "text-slate-400" : "text-gray-600")}>{isoToWeekday(d)}</span>
-                          <div className="flex items-center gap-2 text-sm min-w-0">
-                            {iconForCode(data.daily.weathercode?.[i])}
-                            <span className={cn("truncate max-w-[10rem]", isDark ? "text-slate-200" : "text-gray-900")}>{WEATHER_CODE_MAP[data.daily.weathercode?.[i]]?.label || ""}</span>
-                          </div>
-                        </div>
-
-                        <div className="mt-2 text-sm font-medium w-full text-center sm:text-left">
-                          {Math.round(data.daily.temperature_2m_min?.[i] ?? 0)}{unitLabels.temp}
-                          <span className="mx-1">–</span>
-                          {Math.round(data.daily.temperature_2m_max?.[i] ?? 0)}{unitLabels.temp}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <CardContent className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-bold opacity-40">Sunrise</span>
+                  <span className="text-lg font-semibold">
+                    {data?.daily?.sunrise?.[0]
+                      ? isoToHour(data.daily.sunrise[0])
+                      : "–"}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-bold opacity-40">Sunset</span>
+                  <span className="text-lg font-semibold">
+                    {data?.daily?.sunset?.[0]
+                      ? isoToHour(data.daily.sunset[0])
+                      : "–"}
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right column: simple hourly list (next 24h) */}
-          <div className="space-y-6 lg:col-span-2">
-            <Card className={cardTheme}>
+          <div className="lg:col-span-8 space-y-4 sm:space-y-6 lg:space-y-8">
+            <Card className={cn(cardTheme)}>
               <CardHeader>
-                <CardTitle>Next 24 Hours</CardTitle>
+                <CardTitle>Hourly Forecast</CardTitle>
               </CardHeader>
               <CardContent>
-                {!data && loading && (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                    {Array.from({ length: 12 }).map((_, i) => (
-                      <Skeleton key={i} className="h-20 w-full" />
-                    ))}
-                  </div>
-                )}
-                {data && !loading && !error && (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                    {hourlySlice(data.hourly, 24).map((h) => (
-                      <div key={h.time} className={cn("flex flex-col gap-1 rounded-xl border p-3", isDark ? "border-slate-700" : "bg-white") }>
-                        <div className={cn("text-xs", isDark ? "text-slate-400" : "text-gray-600")}>{isoToHour(h.time)}</div>
-                        <div className="flex items-baseline gap-1 text-lg font-semibold">
-                          {Math.round(h.temperature)}
-                          <span className="text-xs">{unitLabels.temp}</span>
+                <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
+                  {data &&
+                    hourlySlice(data.hourly, 24).map((h) => (
+                      <div
+                        key={h.time}
+                        className="flex flex-col items-center gap-3 min-w-[80px] rounded-2xl p-4 transition-colors hover:bg-indigo-500/5 snap-start"
+                      >
+                        <span className="text-xs font-bold opacity-40 uppercase">
+                          {isoToHour(h.time)}
+                        </span>
+                        <div className="p-2 rounded-full bg-indigo-500/10 text-indigo-500">
+                          <Thermometer className="h-4 w-4" />
                         </div>
-                        <div className={cn("text-xs", isDark ? "text-slate-200" : "text-gray-900")}>Feels {Math.round(h.apparent)}{unitLabels.temp}</div>
-                        <div className={cn("text-xs", isDark ? "text-slate-200" : "text-gray-900")}>Wind {Math.round(h.wind)} {unitLabels.wind}</div>
-                        <div className={cn("text-xs", isDark ? "text-slate-200" : "text-gray-900")}>Hum {Math.round(h.humidity)}%</div>
-                        <div className={cn("text-xs", isDark ? "text-slate-200" : "text-gray-900")}>Precip {fmt(h.precip)}</div>
+                        <span className="font-bold text-lg">
+                          {Math.round(h.temperature)}°
+                        </span>
                       </div>
                     ))}
-                  </div>
-                )}
-                {!loading && !error && !data && (
-                  <div className={cn("text-sm", isDark ? "text-slate-200" : "text-gray-900")}>Type a city name to see the forecast.</div>
-                )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className={cardTheme}>
+              <CardHeader>
+                <CardTitle>7-Day Outlook</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {data?.daily.time.map((d, i) => (
+                    <div
+                      key={d}
+                      className="flex items-center justify-between rounded-2xl border border-white/5 p-3 sm:p-4 transition-all hover:bg-indigo-500/5"
+                    >
+                      {/* CHANGED: Fixed width for day label to align rows */}
+                      <span className="w-12 sm:w-16 font-bold text-indigo-500 uppercase text-xs">
+                        {isoToWeekday(d)}
+                      </span>
+
+                      {/* CHANGED: Added truncate and min-w-0 to prevent overflow of weather label */}
+                      <div className="flex items-center gap-3 flex-1 px-2 sm:px-4 min-w-0">
+                        {iconForCode(data.daily.weathercode?.[i])}
+                        <span className="text-sm font-medium opacity-70 truncate block">
+                          {WEATHER_CODE_MAP[data.daily.weathercode?.[i]]?.label}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 sm:gap-3 text-sm font-bold whitespace-nowrap">
+                        <span className="opacity-40">
+                          {Math.round(data.daily.temperature_2m_min?.[i])}°
+                        </span>
+                        <div className="h-1 w-8 sm:w-12 rounded-full bg-gradient-to-r from-indigo-300 to-indigo-600 hidden xs:block" />
+                        <span>
+                          {Math.round(data.daily.temperature_2m_max?.[i])}°
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -687,16 +775,26 @@ export default function WeatherApp() {
   );
 }
 
-// -------------- Small Helpers --------------
-
-function MiniInfo({ label, value, icon }: { label: string; value?: string; icon?: React.ReactNode }) {
+function DetailBox({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-      <div className="flex items-center gap-2 text-slate-400">
+    <div className="flex flex-col gap-1.5 rounded-2xl bg-black/5 dark:bg-white/5 p-3 sm:p-4 border border-white/5">
+      <div className="flex items-center gap-2 opacity-40">
         {icon}
-        <span className="text-xs">{label}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider">
+          {label}
+        </span>
       </div>
-      <div className="text-xs font-semibold">{value ?? "–"}</div>
+      <span className="text-base sm:text-lg font-bold tracking-tight">
+        {value}
+      </span>
     </div>
   );
 }
