@@ -495,7 +495,7 @@ export default function WeatherApp() {
               <button
                 onClick={() => setUnits("metric")}
                 className={cn(
-                  "flex-1 sm:px-3 sm:px-4 py-2 sm:py-1.5 text-xs font-bold rounded-xl transition-all",
+                  "flex-1 sm:px-4 py-2 sm:py-1.5 text-xs font-bold rounded-xl transition-all",
                   units === "metric"
                     ? "bg-indigo-600 text-white"
                     : "text-slate-600 dark:text-slate-300",
@@ -506,7 +506,7 @@ export default function WeatherApp() {
               <button
                 onClick={() => setUnits("imperial")}
                 className={cn(
-                  "flex-1 sm:px-3 sm:px-4 py-2 sm:py-1.5 text-xs font-bold rounded-xl transition-all",
+                  "flex-1 sm:px-4 py-2 sm:py-1.5 text-xs font-bold rounded-xl transition-all",
                   units === "imperial"
                     ? "bg-indigo-600 text-white"
                     : "text-slate-600 dark:text-slate-300",
