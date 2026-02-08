@@ -16,7 +16,6 @@ import {
   X,
 } from "lucide-react";
 
-
 function cn(...cls: Array<string | false | null | undefined>) {
   return cls.filter(Boolean).join(" ");
 }
@@ -111,7 +110,6 @@ const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
     )}
   />
 );
-
 
 type Units = "metric" | "imperial";
 
@@ -319,7 +317,6 @@ function hourlySlice(hourly: HourlyData, n: number) {
   return items;
 }
 
-
 export default function WeatherApp() {
   const [units, setUnits] = useState<Units>("metric");
   const [query, setQuery] = useState("");
@@ -465,14 +462,16 @@ export default function WeatherApp() {
         </div>
       )}
 
-      <div className="relative mx-auto max-w-6xl p-3 sm:p-4 md:p-8">
-        <header className="sticky top-0 z-50 py-3 mb-4 sm:mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-inherit/10 backdrop-blur-md">
+      <div className="relative mx-auto max-w-6xl p-2 sm:p-4 md:p-6 lg:p-8">
+        {/* UPDATED: Enhanced responsive header - better mobile stacking, smaller padding */}
+        <header className="sticky top-0 z-50 py-2 sm:py-3 mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-inherit/10 backdrop-blur-md">
           <button
             onClick={scrollToTop}
-            className="group flex flex-col items-start transition-transform active:scale-95"
+            className="group flex flex-col items-start transition-transform active:scale-95 w-full sm:w-auto"
           >
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-sky-500 dark:from-indigo-400 dark:to-sky-300">
-              Atmos AI
+            {/* UPDATED: Responsive title sizing */}
+            <h1 className="text-2xl xs:text-3xl sm:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-sky-500 dark:from-indigo-400 dark:to-sky-300">
+              AI Weather App
             </h1>
             <p
               className={cn(
@@ -483,10 +482,11 @@ export default function WeatherApp() {
             </p>
           </button>
 
-          <div className="flex items-center gap-3 sm:gap-4 self-end sm:self-auto">
+          {/* UPDATED: Better mobile controls - full width stack on very small screens */}
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <div
               className={cn(
-                "flex rounded-2xl p-1",
+                "flex rounded-2xl p-1 w-full sm:w-auto",
                 isDark
                   ? "bg-slate-800/50 border border-slate-700"
                   : "bg-white/50 border border-indigo-100",
@@ -495,7 +495,7 @@ export default function WeatherApp() {
               <button
                 onClick={() => setUnits("metric")}
                 className={cn(
-                  "px-3 sm:px-4 py-1.5 text-xs font-bold rounded-xl transition-all",
+                  "flex-1 sm:px-3 sm:px-4 py-2 sm:py-1.5 text-xs font-bold rounded-xl transition-all",
                   units === "metric"
                     ? "bg-indigo-600 text-white"
                     : "text-slate-600 dark:text-slate-300",
@@ -506,7 +506,7 @@ export default function WeatherApp() {
               <button
                 onClick={() => setUnits("imperial")}
                 className={cn(
-                  "px-3 sm:px-4 py-1.5 text-xs font-bold rounded-xl transition-all",
+                  "flex-1 sm:px-3 sm:px-4 py-2 sm:py-1.5 text-xs font-bold rounded-xl transition-all",
                   units === "imperial"
                     ? "bg-indigo-600 text-white"
                     : "text-slate-600 dark:text-slate-300",
@@ -519,7 +519,7 @@ export default function WeatherApp() {
             <button
               onClick={() => setIsDark(!isDark)}
               className={cn(
-                "relative flex h-9 sm:h-10 w-16 sm:w-20 items-center rounded-full p-1 transition-all",
+                "relative flex h-9 sm:h-10 w-16 sm:w-20 items-center rounded-full p-1 transition-all self-start sm:self-auto",
                 isDark ? "bg-indigo-900/50" : "bg-indigo-100",
               )}
             >
@@ -541,17 +541,17 @@ export default function WeatherApp() {
           </div>
         </header>
 
-        {/* Search Bar */}
+        {/* UPDATED: Responsive search - touch-friendly height, better dropdown positioning */}
         <div className="relative mb-6 sm:mb-8 z-[60]">
           <div className="flex gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 opacity-40" />
+              <Search className="absolute left-3 sm:left-4 top-1/2 h-4 w-4 -translate-y-1/2 opacity-40" />
               <Input
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Find a city..."
-                className="pl-11 h-12 text-base rounded-2xl"
+                className="pl-10 sm:pl-11 h-11 sm:h-12 text-base rounded-2xl w-full"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && suggestions[0])
                     handleSelectCity(suggestions[0]);
@@ -563,7 +563,7 @@ export default function WeatherApp() {
                     setQuery("");
                     setSuggestions([]);
                   }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1"
+                  className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1"
                 >
                   <X className="h-4 w-4 opacity-40" />
                 </button>
@@ -572,7 +572,7 @@ export default function WeatherApp() {
           </div>
 
           {!!suggestions.length && (
-            <div className="absolute left-0 right-0 z-[70] mt-2 shadow-2xl">
+            <div className="absolute left-0 right-0 z-[70] mt-2 shadow-2xl w-full">
               <Card
                 className={cn(
                   cardTheme,
@@ -587,7 +587,7 @@ export default function WeatherApp() {
                       className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-indigo-500/10"
                     >
                       <MapPin className="h-4 w-4 text-indigo-500 flex-shrink-0" />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-sm truncate">
                           {s.name}
                         </p>
@@ -604,13 +604,15 @@ export default function WeatherApp() {
           )}
         </div>
 
-        <div className="grid gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-12 relative z-10">
+        {/* UPDATED: Explicit responsive grid - single column mobile, proper split lg+ */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 relative z-10">
           <div className="lg:col-span-4 space-y-4 sm:space-y-6 lg:space-y-8">
             <Card className={cn(cardTheme, "relative overflow-hidden")}>
               <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-indigo-500/10 blur-3xl" />
-              <CardHeader className="flex flex-row items-start justify-between">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0">
                 <div>
-                  <CardTitle className="text-xl sm:text-2xl">
+                  {/* UPDATED: Responsive card title */}
+                  <CardTitle className="text-lg sm:text-xl md:text-2xl">
                     {selected?.name || "–"}
                   </CardTitle>
                   <p className="text-xs font-bold opacity-40 mt-1 uppercase tracking-widest">
@@ -637,7 +639,8 @@ export default function WeatherApp() {
                   data && (
                     <div className="space-y-6">
                       <div className="flex items-center gap-4">
-                        <div className="text-5xl sm:text-7xl font-black tracking-tighter">
+                        {/* UPDATED: Responsive temp display */}
+                        <div className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter">
                           {Math.round(data.current_weather.temperature)}°
                         </div>
                         <div className="text-indigo-500">
@@ -708,20 +711,21 @@ export default function WeatherApp() {
                 <CardTitle>Hourly Forecast</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
+                {/* UPDATED: Better mobile hourly - wider min-width, snap-center for better UX */}
+                <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
                   {data &&
                     hourlySlice(data.hourly, 24).map((h) => (
                       <div
                         key={h.time}
-                        className="flex flex-col items-center gap-3 min-w-[80px] rounded-2xl p-4 transition-colors hover:bg-indigo-500/5 snap-start"
+                        className="flex flex-col items-center gap-2 sm:gap-3 min-w-[72px] sm:min-w-[80px] rounded-2xl p-3 sm:p-4 transition-colors hover:bg-indigo-500/5 snap-center"
                       >
-                        <span className="text-xs font-bold opacity-40 uppercase">
+                        <span className="text-xs font-bold opacity-40 uppercase text-center">
                           {isoToHour(h.time)}
                         </span>
-                        <div className="p-2 rounded-full bg-indigo-500/10 text-indigo-500">
-                          <Thermometer className="h-4 w-4" />
+                        <div className="p-1.5 sm:p-2 rounded-full bg-indigo-500/10 text-indigo-500">
+                          <Thermometer className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
                         </div>
-                        <span className="font-bold text-lg">
+                        <span className="font-bold text-base sm:text-lg">
                           {Math.round(h.temperature)}°
                         </span>
                       </div>
@@ -741,24 +745,25 @@ export default function WeatherApp() {
                       key={d}
                       className="flex items-center justify-between rounded-2xl border border-white/5 p-3 sm:p-4 transition-all hover:bg-indigo-500/5"
                     >
-                      {/* CHANGED: Fixed width for day label to align rows */}
-                      <span className="w-12 sm:w-16 font-bold text-indigo-500 uppercase text-xs">
+                      {/* FIXED: Consistent responsive day width */}
+                      <span className="w-14 sm:w-16 font-bold text-indigo-500 uppercase text-xs whitespace-nowrap">
                         {isoToWeekday(d)}
                       </span>
 
-                      {/* CHANGED: Added truncate and min-w-0 to prevent overflow of weather label */}
-                      <div className="flex items-center gap-3 flex-1 px-2 sm:px-4 min-w-0">
+                      {/* FIXED: Better responsive weather text handling */}
+                      <div className="flex items-center gap-2 sm:gap-3 flex-1 px-2 sm:px-4 min-w-0">
                         {iconForCode(data.daily.weathercode?.[i])}
-                        <span className="text-sm font-medium opacity-70 truncate block">
+                        <span className="text-sm font-medium opacity-70 truncate">
                           {WEATHER_CODE_MAP[data.daily.weathercode?.[i]]?.label}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 sm:gap-3 text-sm font-bold whitespace-nowrap">
+                      {/* UPDATED: Responsive temp bar */}
+                      <div className="flex items-center gap-1 sm:gap-2 sm:text-sm font-bold whitespace-nowrap text-xs">
                         <span className="opacity-40">
                           {Math.round(data.daily.temperature_2m_min?.[i])}°
                         </span>
-                        <div className="h-1 w-8 sm:w-12 rounded-full bg-gradient-to-r from-indigo-300 to-indigo-600 hidden xs:block" />
+                        <div className="h-1 w-6 sm:w-8 md:w-12 rounded-full bg-gradient-to-r from-indigo-300 to-indigo-600 hidden xs:block flex-shrink-0" />
                         <span>
                           {Math.round(data.daily.temperature_2m_max?.[i])}°
                         </span>
